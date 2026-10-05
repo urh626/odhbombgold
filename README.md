@@ -1,0 +1,2 @@
+# odhbombgold
+js gold bomb
