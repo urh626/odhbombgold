@@ -1,0 +1,96 @@
+-- OVERDRIVE H GOLDEN BOMB SUITE (v3.7 COMPATIBLE)
+local Players = game:GetService("Players")
+local UserInputService = game:GetService("UserInputService")
+local LocalPlayer = Players.LocalPlayer
+
+-- Target configuration states
+local BombJumpEnabled = false
+local BombJumpKey = Enum.KeyCode.LeftAlt
+local JumpPowerMultiplier = 65 -- Golden jumps are usually tuned slightly higher!
+
+-- Helper function to search character and inventory for ANY bomb variant (including gold)
+local function FindBombItem(container)
+    if not container then return nil end
+    for _, item in ipairs(container:GetChildren()) do
+        if item:IsA("Tool") and (string.find(item.Name, "Bomb") or string.find(item.Name, "Prank")) then
+            return item
+        end
+    end
+    return nil
+end
+
+-- Dynamic core executor loop
+local function HandleBombMechanic()
+    local character = LocalPlayer.Character
+    if not character then return end
+    
+    local rootPart = character:FindFirstChild("HumanoidRootPart")
+    local humanoid = character:FindFirstChildOfClass("Humanoid")
+    if not rootPart or not humanoid then return end
+
+    -- Check character hand first, then fallback to backpack inventory
+    local holdingBomb = FindBombItem(character)
+    local inventoryBomb = FindBombItem(LocalPlayer.Backpack)
+
+    if holdingBomb or inventoryBomb then
+        -- Force-equip the gold/standard bomb asset instantly if unequipped
+        if inventoryBomb and not holdingBomb then
+            humanoid:EquipTool(inventoryBomb)
+            task.wait(0.02) -- Absolute minimum delay for weld stability
+            holdingBomb = FindBombItem(character)
+        end
+
+        -- Check if the player is currently airborne (Jumping/Falling)
+        local isAirborne = humanoid.FloorMaterial == Enum.Material.Air
+
+        if isAirborne then
+            -- AIRBORNE STATE: Apply camera-independent vertical boost vector
+            rootPart.AssemblyLinearVelocity = Vector3.new(rootPart.AssemblyLinearVelocity.X, JumpPowerMultiplier, rootPart.AssemblyLinearVelocity.Z)
+            humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
+        else
+            -- GROUND STATE: Execute a normal tool activation (Throws the bomb cleanly)
+            if holdingBomb then
+                holdingBomb:Activate()
+            end
+        end
+    end
+end
+
+-- Keybind Input Listener (Handles Mobile Floating Button Trigger too)
+UserInputService.InputBegan:Connect(function(input, gameProcessed)
+    if gameProcessed then return end
+    if BombJumpEnabled and input.KeyCode == BombJumpKey then
+        HandleBombMechanic()
+    end
+end)
+
+-- Overdrive H v3.7 Framework UI Generation Block
+local Plugin = {
+    Name = "Golden Movement Suite",
+    Description = "Supports standard and Golden Prank Bomb parameters for universal hybrid jumps.",
+    Author = "Plugin Generator"
+}
+
+function Plugin:Init(MenuAPI)
+    local MovementTab = MenuAPI:CreateTab("Gold Exploits")
+    
+    -- Main Core Activation Toggle
+    MovementTab:CreateToggle({
+        Name = "Enable Gold Bomb Suite",
+        Default = false,
+        Callback = function(state)
+            BombJumpEnabled = state
+        end
+    })
+
+    -- Interactive Keybind Element
+    MovementTab:CreateKeybind({
+        Name = "Gold Activation Key",
+        Default = Enum.KeyCode.LeftAlt,
+        Callback = function(key)
+            BombJumpKey = key
+        end
+    })
+end
+
+return Plugin
